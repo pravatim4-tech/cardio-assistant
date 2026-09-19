@@ -1,0 +1,1176 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cardiac AI-Assist Diagnostic Dashboard</title>
+    
+    <!-- Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    
+    <!-- Custom CSS -->
+    <link rel="stylesheet" href="./css/main.css">
+
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                    },
+                    colors: {
+                        slate: {
+                            850: '#151e2e',
+                            900: '#0f172a',
+                            950: '#020617',
+                        },
+                        clinical: {
+                            blue: '#0ea5e9',
+                            dark: '#0f172a',
+                            panel: '#1e293b'
+                        },
+                        confidence: {
+                            high: '#10b981', // green
+                            medium: '#f59e0b', // yellow
+                            low: '#ef4444' // red
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+
+    <!-- EmailJS SDK -->
+    <script type="text/javascript" src="https://cdn.jsdelivr.net/npm/@emailjs/browser@3/dist/email.min.js"></script>
+</head>
+<body class="bg-slate-950 text-slate-300 font-sans h-screen overflow-hidden flex flex-col md:flex-row relative">
+
+    <!-- ChatGPT Astra-Style Splash Screen -->
+    <div id="astra-splash" class="fixed inset-0 z-[100] bg-slate-950 flex flex-col items-center justify-center transition-opacity duration-1000">
+        <!-- Glowing 3D Heart -->
+        <div class="relative w-40 h-40 mb-10 flex items-center justify-center">
+            <div class="absolute inset-0 rounded-full bg-clinical-blue/10 animate-ping opacity-50 blur-xl"></div>
+            <div class="absolute inset-0 rounded-full border border-clinical-blue/30 animate-spin-slow"></div>
+            
+            <div class="relative z-10 w-24 h-24 text-clinical-blue drop-shadow-[0_0_25px_rgba(14,165,233,0.8)] flex items-center justify-center overflow-hidden">
+                <i data-lucide="heart" class="w-full h-full fill-clinical-blue/20 animate-pulse"></i>
+                <!-- EKG Scanning Wave Overlay -->
+                <div class="absolute inset-0 border-t-2 border-emerald-400 opacity-80" style="animation: scanWave 1.5s linear infinite; box-shadow: 0 -10px 20px rgba(16, 185, 129, 0.5);"></div>
+            </div>
+        </div>
+        
+        <h1 class="text-3xl font-bold text-white mb-3 tracking-widest uppercase drop-shadow-md">CardioKnight AI</h1>
+        
+        <!-- Cycling Status Text -->
+        <div class="h-6 mb-8 overflow-hidden relative w-full flex justify-center items-center">
+            <p id="splash-status-text" class="text-sm font-medium text-clinical-blue tracking-wide transition-opacity duration-300">Initializing Core Systems...</p>
+        </div>
+        
+        <div class="w-72 h-1.5 bg-slate-800 rounded-full overflow-hidden relative shadow-[0_0_10px_rgba(0,0,0,0.5)] inset">
+            <div class="h-full bg-clinical-blue absolute left-0 top-0 shadow-[0_0_10px_rgba(14,165,233,1)]" style="animation: progress 2.5s ease-in-out forwards;"></div>
+        </div>
+        <button onclick="window.skipSplash()" class="absolute bottom-8 right-8 text-xs text-slate-500 hover:text-white transition-colors flex items-center px-3 py-1.5 border border-slate-700 rounded-full bg-slate-900/50 hover:bg-slate-800">
+            Skip Intro <i data-lucide="chevron-right" class="w-3 h-3 ml-1"></i>
+        </button>
+    </div>
+
+    <!-- User Authentication Modal -->
+    <div id="auth-modal" class="fixed inset-0 z-[200] bg-slate-950 flex items-center justify-center hidden opacity-0 transition-opacity duration-500 backdrop-blur-sm">
+        
+        <!-- Login Container -->
+        <div id="auth-login-view" class="w-full max-w-md bg-slate-900 border border-slate-800 rounded-2xl shadow-2xl overflow-hidden relative transition-all duration-300">
+            <div class="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-clinical-blue to-emerald-400"></div>
+            <div class="p-8">
+                <div class="flex justify-center mb-6">
+                    <div class="p-3 bg-slate-800 rounded-xl shadow-inner">
+                        <i data-lucide="shield-check" class="w-8 h-8 text-clinical-blue"></i>
+                    </div>
+                </div>
+                <h2 class="text-2xl font-bold text-white text-center mb-2">Secure Access</h2>
+                <p class="text-sm text-slate-400 text-center mb-8">Enter your credentials to access the workspace.</p>
+                
+                <form id="login-form" class="space-y-4">
+                    <div>
+                        <label class="block text-xs font-medium text-slate-400 mb-1">Email or Username</label>
+                        <input type="text" id="login-identifier" required class="w-full bg-slate-950 border border-slate-700 rounded-lg px-4 py-2.5 text-white text-sm focus:border-clinical-blue focus:ring-1 focus:ring-clinical-blue outline-none transition-all" placeholder="dr.smith@hospital.org">
+                    </div>
+                    <div>
+                        <div class="flex justify-between items-center mb-1">
+                            <label class="block text-xs font-medium text-slate-400">Password</label>
+                            <button type="button" id="btn-forgot-password" class="text-[10px] text-clinical-blue hover:underline focus:outline-none">Forgot?</button>
+                        </div>
+                        <input type="password" id="login-password" required class="w-full bg-slate-950 border border-slate-700 rounded-lg px-4 py-2.5 text-white text-sm focus:border-clinical-blue focus:ring-1 focus:ring-clinical-blue outline-none transition-all" placeholder="••••••••">
+                    </div>
+                    
+                    <button type="submit" class="w-full bg-clinical-blue hover:bg-blue-500 text-white font-semibold py-2.5 rounded-lg transition-colors mt-2 text-sm shadow-[0_0_15px_rgba(14,165,233,0.3)]">
+                        Sign In
+                    </button>
+                    
+                    <div class="relative flex items-center justify-center my-6">
+                        <div class="absolute inset-0 flex items-center"><div class="w-full border-t border-slate-700"></div></div>
+                        <div class="relative px-4 bg-slate-900 text-xs text-slate-500">OR</div>
+                    </div>
+                    
+                    <button type="button" id="btn-otp-trigger" class="w-full bg-slate-800 hover:bg-slate-700 border border-slate-700 text-white font-medium py-2.5 rounded-lg transition-colors flex items-center justify-center space-x-2 text-sm">
+                        <i data-lucide="mail" class="w-4 h-4"></i>
+                        <span>Sign in with Email OTP</span>
+                    </button>
+                </form>
+                
+                <p class="text-center text-xs text-slate-500 mt-8">
+                    New staff member? <button type="button" id="btn-request-access" class="text-clinical-blue hover:underline focus:outline-none">Request Access</button>
+                </p>
+            </div>
+        </div>
+
+        <!-- Registration Container -->
+        <div id="auth-register-view" class="w-full max-w-md bg-slate-900 border border-slate-800 rounded-2xl shadow-2xl overflow-hidden relative hidden transition-all duration-300">
+            <div class="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-emerald-400 to-clinical-blue"></div>
+            <div class="p-8">
+                <h2 class="text-xl font-bold text-white mb-2">Create Account</h2>
+                <p class="text-xs text-slate-400 mb-6">Register for CardioKnight workspace access.</p>
+                
+                <form id="register-form" class="space-y-4">
+                    <div>
+                        <label class="block text-xs font-medium text-slate-400 mb-1">Full Name</label>
+                        <input type="text" id="reg-name" required class="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-white text-sm focus:border-clinical-blue outline-none" placeholder="Dr. Sarah Jenkins">
+                    </div>
+                    <div class="grid grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-xs font-medium text-slate-400 mb-1">Username</label>
+                            <input type="text" id="reg-username" required class="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-white text-sm focus:border-clinical-blue outline-none" placeholder="sjenkins">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-medium text-slate-400 mb-1">Role</label>
+                            <select id="reg-role" class="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-white text-sm focus:border-clinical-blue outline-none appearance-none">
+                                <option value="Cardiologist">Cardiologist</option>
+                                <option value="Radiologist">Radiologist</option>
+                                <option value="Technician">Technician</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-medium text-slate-400 mb-1">Email</label>
+                        <input type="email" id="reg-email" required class="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-white text-sm focus:border-clinical-blue outline-none" placeholder="sarah.jenkins@hospital.org">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-medium text-slate-400 mb-1">Password</label>
+                        <input type="password" id="reg-password" required minlength="6" class="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-white text-sm focus:border-clinical-blue outline-none" placeholder="••••••••">
+                    </div>
+                    
+                    <button type="submit" class="w-full bg-emerald-500 hover:bg-emerald-600 text-white font-semibold py-2.5 rounded-lg transition-colors mt-4 text-sm shadow-[0_0_15px_rgba(16,185,129,0.3)]">
+                        Register Account
+                    </button>
+                </form>
+                
+                <p class="text-center text-xs text-slate-500 mt-6">
+                    Already have an account? <button onclick="window.switchAuthView('login')" class="text-clinical-blue hover:underline focus:outline-none">Sign In</button>
+                </p>
+            </div>
+        </div>
+
+        <!-- OTP Container -->
+        <div id="auth-otp-view" class="w-full max-w-sm bg-slate-900 border border-slate-800 rounded-2xl shadow-2xl overflow-hidden relative hidden transition-all duration-300">
+            <div class="absolute top-0 left-0 w-full h-1 bg-clinical-blue"></div>
+            <div class="p-8 text-center">
+                <div class="w-12 h-12 bg-slate-800 rounded-full flex items-center justify-center mx-auto mb-4 border border-slate-700">
+                    <i data-lucide="key-round" class="w-5 h-5 text-clinical-blue"></i>
+                </div>
+                <h2 class="text-xl font-bold text-white mb-2">Verify Identity</h2>
+                <p class="text-xs text-slate-400 mb-6">Access request sent to Lead Developer PRAVATI MAITRA (pravatim4@gmail.com). Please enter the 6-digit approval code provided by the administrator.</p>
+                
+                <div class="flex justify-center space-x-2 mb-6" id="otp-inputs">
+                    <input type="text" maxlength="1" class="w-10 h-12 bg-slate-950 border border-slate-700 rounded-lg text-center text-lg text-white font-bold focus:border-clinical-blue focus:ring-1 focus:ring-clinical-blue outline-none transition-all otp-digit">
+                    <input type="text" maxlength="1" class="w-10 h-12 bg-slate-950 border border-slate-700 rounded-lg text-center text-lg text-white font-bold focus:border-clinical-blue focus:ring-1 focus:ring-clinical-blue outline-none transition-all otp-digit">
+                    <input type="text" maxlength="1" class="w-10 h-12 bg-slate-950 border border-slate-700 rounded-lg text-center text-lg text-white font-bold focus:border-clinical-blue focus:ring-1 focus:ring-clinical-blue outline-none transition-all otp-digit">
+                    <input type="text" maxlength="1" class="w-10 h-12 bg-slate-950 border border-slate-700 rounded-lg text-center text-lg text-white font-bold focus:border-clinical-blue focus:ring-1 focus:ring-clinical-blue outline-none transition-all otp-digit">
+                    <input type="text" maxlength="1" class="w-10 h-12 bg-slate-950 border border-slate-700 rounded-lg text-center text-lg text-white font-bold focus:border-clinical-blue focus:ring-1 focus:ring-clinical-blue outline-none transition-all otp-digit">
+                    <input type="text" maxlength="1" class="w-10 h-12 bg-slate-950 border border-slate-700 rounded-lg text-center text-lg text-white font-bold focus:border-clinical-blue focus:ring-1 focus:ring-clinical-blue outline-none transition-all otp-digit">
+                </div>
+                
+                <button type="button" id="btn-verify-otp" class="w-full bg-clinical-blue hover:bg-blue-500 text-white font-semibold py-2.5 rounded-lg transition-colors text-sm">
+                    Verify Code
+                </button>
+                
+                <button onclick="window.switchAuthView('login')" class="mt-6 text-xs text-slate-500 hover:text-white transition-colors focus:outline-none">
+                    <i data-lucide="arrow-left" class="w-3 h-3 inline mr-1"></i> Back to Login
+                </button>
+            </div>
+        </div>
+
+        <!-- Forgot Password Container -->
+        <div id="auth-forgot-view" class="w-full max-w-sm bg-slate-900 border border-slate-800 rounded-2xl shadow-2xl overflow-hidden relative hidden transition-all duration-300">
+            <div class="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-red-400 to-clinical-blue"></div>
+            <div class="p-8">
+                <div class="flex justify-center mb-6">
+                    <div class="p-3 bg-slate-800 rounded-xl shadow-inner">
+                        <i data-lucide="shield-alert" class="w-8 h-8 text-clinical-blue"></i>
+                    </div>
+                </div>
+                <h2 class="text-xl font-bold text-white text-center mb-2">Reset Password</h2>
+                <p class="text-xs text-slate-400 text-center mb-6">Enter your email to request a reset link from the administrator.</p>
+                
+                <form id="forgot-form" class="space-y-4">
+                    <div>
+                        <label class="block text-xs font-medium text-slate-400 mb-1">Email Address</label>
+                        <input type="email" id="forgot-email" required class="w-full bg-slate-950 border border-slate-700 rounded-lg px-4 py-2.5 text-white text-sm focus:border-clinical-blue focus:ring-1 focus:ring-clinical-blue outline-none transition-all" placeholder="dr.smith@hospital.org">
+                    </div>
+                    
+                    <button type="submit" class="w-full bg-clinical-blue hover:bg-blue-500 text-white font-semibold py-2.5 rounded-lg transition-colors mt-4 text-sm shadow-[0_0_15px_rgba(14,165,233,0.3)]">
+                        Send Reset Request
+                    </button>
+                </form>
+                
+                <div class="text-center mt-6">
+                    <button onclick="window.switchAuthView('login')" class="text-xs text-slate-500 hover:text-white transition-colors focus:outline-none">
+                        <i data-lucide="arrow-left" class="w-3 h-3 inline mr-1"></i> Back to Login
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+
+    <!-- Sidebar / Navigation -->
+    <aside class="w-full md:w-64 h-16 md:h-full bg-slate-900 border-t md:border-t-0 md:border-r border-slate-800 flex flex-row md:flex-col items-center justify-between md:justify-start px-6 md:px-4 md:py-6 space-x-6 md:space-x-0 md:space-y-4 z-20 order-last md:order-first transition-all">
+        <div class="text-clinical-blue p-2 bg-slate-800 rounded-lg hidden md:flex items-center space-x-3 w-full justify-center md:justify-start mb-4">
+            <i data-lucide="activity" class="w-6 h-6 shrink-0"></i>
+            <span class="font-bold text-white tracking-wide truncate">CardioKnight</span>
+        </div>
+        <nav class="flex flex-row md:flex-col space-x-8 md:space-x-0 md:space-y-2 flex-1 items-center justify-center w-full">
+            <button id="nav-dashboard" class="text-white bg-slate-800 p-2 md:p-3 rounded transition-colors w-full flex items-center justify-center md:justify-start md:space-x-3 group relative" title="Dashboard" onclick="window.switchView('app-content', 'nav-dashboard')">
+                <i data-lucide="layout-dashboard" class="shrink-0"></i>
+                <span class="hidden md:inline font-medium text-sm">Dashboard / Viewer</span>
+            </button>
+            <button id="nav-directory" class="text-slate-400 hover:text-white hover:bg-slate-800 p-2 md:p-3 rounded transition-colors w-full flex items-center justify-center md:justify-start md:space-x-3 group relative" title="Patient Directory" onclick="window.switchView('view-directory', 'nav-directory')">
+                <i data-lucide="users" class="shrink-0"></i>
+                <span class="hidden md:inline font-medium text-sm">Patient Directory</span>
+            </button>
+            <button id="nav-analytics" class="text-slate-400 hover:text-white hover:bg-slate-800 p-2 md:p-3 rounded transition-colors w-full flex items-center justify-center md:justify-start md:space-x-3 group relative" title="Analytics" onclick="window.switchView('view-analytics', 'nav-analytics')">
+                <i data-lucide="bar-chart-2" class="shrink-0"></i>
+                <span class="hidden md:inline font-medium text-sm">Analytics & Reports</span>
+            </button>
+            <button id="nav-upload" class="text-slate-400 hover:text-white hover:bg-slate-800 p-2 md:p-3 rounded transition-colors w-full flex items-center justify-center md:justify-start md:space-x-3 group relative" title="Data Ingestion" onclick="window.switchView('view-upload', 'nav-upload')">
+                <i data-lucide="upload-cloud" class="shrink-0"></i>
+                <span class="hidden md:inline font-medium text-sm">Data Ingestion</span>
+            </button>
+            <button id="nav-creator-mode" class="text-amber-400 hover:text-amber-300 hover:bg-slate-800 p-2 md:p-3 rounded transition-colors w-full hidden items-center justify-center md:justify-start md:space-x-3 group relative" title="Creator Control Mode" onclick="window.switchView('view-creator', 'nav-creator-mode')">
+                <i data-lucide="crown" class="shrink-0"></i>
+                <span class="hidden md:inline font-medium text-sm">Creator Control Mode</span>
+            </button>
+        </nav>
+        <div class="mt-auto hidden md:flex w-full justify-center">
+            <button id="nav-settings" class="text-slate-400 hover:text-white hover:bg-slate-800 p-3 rounded transition-colors w-full flex items-center justify-start space-x-3 group relative" title="System Settings" onclick="window.switchView('view-settings', 'nav-settings')">
+                <i data-lucide="settings" class="shrink-0"></i>
+                <span class="hidden md:inline font-medium text-sm">System Settings</span>
+            </button>
+        </div>
+    </aside>
+
+    <!-- Main Application Area -->
+    <div class="flex-1 flex flex-col h-[calc(100vh-4rem)] md:h-full overflow-hidden relative">
+        
+        <!-- Toast Notification Container -->
+        <div id="toast-container" class="fixed top-4 right-4 z-50 flex flex-col space-y-2 pointer-events-none"></div>
+
+        <!-- Top Header -->
+        <header class="h-14 bg-slate-900 border-b border-slate-800 flex items-center justify-between px-4 md:px-6 z-10 shrink-0">
+            <div class="flex items-center space-x-2 md:space-x-4">
+                <div class="text-clinical-blue p-1.5 bg-slate-800 rounded-md md:hidden">
+                    <i data-lucide="activity" class="w-4 h-4"></i>
+                </div>
+                <h1 class="text-base md:text-lg font-semibold text-white tracking-wide truncate">CardioKnight <span class="hidden sm:inline text-sm font-normal text-slate-400">| Diagnostic Viewer</span></h1>
+                
+                <!-- Creator Badge -->
+                <span id="creator-badge" class="hidden items-center bg-amber-500/20 text-amber-400 text-xs px-2 py-1 rounded border border-amber-500/30 ml-4 font-semibold shrink-0">
+                    <i data-lucide="crown" class="w-3 h-3 mr-1"></i> Creator & Master Admin
+                </span>
+            </div>
+            <div class="flex items-center space-x-4 text-sm">
+                <div class="hidden sm:flex items-center space-x-2 text-slate-400">
+                    <div class="w-2 h-2 rounded-full bg-confidence-high animate-pulse"></div>
+                    <span>AI Engine Active</span>
+                </div>
+                <div class="hidden sm:block h-6 w-px bg-slate-700"></div>
+                <div class="relative group">
+                    <div class="flex items-center space-x-2">
+                        <div class="relative group/avatar cursor-pointer" onclick="document.getElementById('avatar-upload').click()" title="Change Profile Photo">
+                            <img src="https://i.pravatar.cc/100?img=33" id="header-dr-img" alt="Doctor Profile" class="w-8 h-8 rounded-full border-2 border-slate-700 transition-opacity group-hover/avatar:opacity-70 object-cover">
+                            <div class="absolute inset-0 flex items-center justify-center opacity-0 group-hover/avatar:opacity-100 transition-opacity pointer-events-none">
+                                <i data-lucide="upload" class="w-4 h-4 text-white drop-shadow-md"></i>
+                            </div>
+                            <div class="absolute bottom-0 right-0 w-2.5 h-2.5 bg-emerald-500 border-2 border-slate-900 rounded-full" title="Online"></div>
+                            <input type="file" id="avatar-upload" accept="image/*" class="hidden">
+                        </div>
+                        <button class="flex items-center space-x-2 focus:outline-none" onclick="window.toggleProfileMenu()">
+                            <div class="hidden md:flex flex-col text-left">
+                                <div class="text-white font-medium text-sm flex items-center">
+                                    <span id="header-dr-name">Dr. S. Reynolds</span>
+                                    <i data-lucide="chevron-down" class="w-3 h-3 ml-1 text-slate-400"></i>
+                                </div>
+                                <div class="text-[10px] text-slate-400" id="header-dr-title">Chief of Cardiology</div>
+                            </div>
+                        </button>
+                        <button onclick="window.logout()" class="ml-2 p-1.5 text-slate-400 hover:text-red-400 hover:bg-slate-800 rounded-md transition-colors focus:outline-none" title="Log Out">
+                            <i data-lucide="log-out" class="w-4 h-4"></i>
+                        </button>
+                    </div>
+                    <!-- Profile Dropdown -->
+                    <div id="profile-dropdown" class="absolute right-0 mt-2 w-64 bg-slate-800 border border-slate-700 rounded-md shadow-lg hidden z-50 overflow-hidden">
+                        <div class="px-4 py-2 bg-slate-900 border-b border-slate-700">
+                            <div class="text-xs text-slate-400 font-semibold uppercase">On-Duty Clinical Team (3 Online)</div>
+                        </div>
+                        <button class="w-full text-left px-4 py-3 hover:bg-slate-700 flex items-center space-x-3 transition-colors border-l-2 border-clinical-blue" onclick="window.switchDoctorProfile('reynolds')">
+                            <img src="https://i.pravatar.cc/100?img=33" class="w-8 h-8 rounded-full">
+                            <div>
+                                <div class="text-sm text-white font-medium">Dr. S. Reynolds</div>
+                                <div class="text-[10px] text-slate-400">Chief of Cardiology</div>
+                            </div>
+                        </button>
+                        <button class="w-full text-left px-4 py-3 hover:bg-slate-700 flex items-center space-x-3 transition-colors border-l-2 border-transparent" onclick="window.switchDoctorProfile('vance')">
+                            <img src="https://i.pravatar.cc/100?img=47" class="w-8 h-8 rounded-full">
+                            <div>
+                                <div class="text-sm text-white font-medium">Dr. A. Vance</div>
+                                <div class="text-[10px] text-slate-400">Senior Radiologist</div>
+                            </div>
+                        </button>
+                        <button class="w-full text-left px-4 py-3 hover:bg-slate-700 flex items-center space-x-3 transition-colors border-l-2 border-transparent" onclick="window.switchDoctorProfile('patel')">
+                            <img src="https://i.pravatar.cc/100?img=11" class="w-8 h-8 rounded-full">
+                            <div>
+                                <div class="text-sm text-white font-medium">Dr. M. Patel</div>
+                                <div class="text-[10px] text-slate-400">Interventional Cardiologist</div>
+                            </div>
+                        </button>
+                        <div class="border-t border-slate-700 mt-2">
+                            <button class="w-full text-left px-4 py-3 hover:bg-red-500/10 text-red-400 flex items-center transition-colors" onclick="window.logout()">
+                                <i data-lucide="log-out" class="w-4 h-4 mr-2"></i> Log Out
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </header>
+
+        <!-- Loading / Error States -->
+        <div id="app-loading" class="absolute inset-0 z-40 bg-slate-950 flex flex-col items-center justify-center">
+            <i data-lucide="loader-2" class="w-10 h-10 text-clinical-blue animate-spin mb-4"></i>
+            <h2 class="text-lg font-medium text-white">Initializing AI Engine & Mock Data...</h2>
+            <p class="text-sm text-slate-500 mt-2">Connecting to local FHIR and DICOM endpoints</p>
+        </div>
+        
+        <div id="app-error" class="absolute inset-0 z-40 bg-slate-950 flex-col items-center justify-center hidden">
+            <i data-lucide="alert-triangle" class="w-12 h-12 text-red-500 mb-4"></i>
+            <h2 class="text-xl font-bold text-white mb-2">System Error</h2>
+            <p class="text-slate-400 mb-6 max-w-md text-center" id="error-message">Failed to load mock data engine.</p>
+            <button class="btn-primary flex items-center" onclick="window.location.reload()">
+                <i data-lucide="refresh-cw" class="w-4 h-4 mr-2"></i> Retry Connection
+            </button>
+        </div>
+
+        <!-- ============================== -->
+        <!-- VIEW 1: Main Dashboard (Content) -->
+        <!-- ============================== -->
+        <div id="welcome-banner" class="hidden bg-slate-900 border-b border-slate-800 px-6 py-3 flex items-center shrink-0">
+            <span id="welcome-banner-text" class="text-sm font-medium text-slate-300"></span>
+        </div>
+        
+        <div id="app-content" class="app-view flex-1 flex flex-col lg:flex-row overflow-hidden opacity-0 transition-opacity duration-500">
+            <!-- Triage Queue / Patient List (Left Column) -->
+            <div class="w-full lg:w-80 bg-slate-900 border-b lg:border-b-0 lg:border-r border-slate-800 flex flex-col shrink-0 h-1/3 lg:h-full">
+                <div class="p-3 md:p-4 border-b border-slate-800 flex-shrink-0">
+                    <div class="flex justify-between items-center mb-2 md:mb-3">
+                        <h2 class="text-white font-medium">Triage Worklist</h2>
+                        <button onclick="window.openRegisterModal()" class="text-[10px] md:text-xs text-clinical-blue hover:text-sky-300 flex items-center transition-colors">
+                            <i data-lucide="plus" class="w-3 h-3 mr-1"></i> Register
+                        </button>
+                    </div>
+                    <div class="relative">
+                        <i data-lucide="search" class="absolute left-3 top-2.5 w-4 h-4 text-slate-500"></i>
+                        <input type="text" id="patient-search" placeholder="Search patients or MRN..." class="w-full bg-slate-950 border border-slate-700 rounded-md py-1.5 md:py-2 pl-9 pr-3 text-sm focus:outline-none focus:border-clinical-blue text-white">
+                    </div>
+                </div>
+                <div class="flex-1 overflow-y-auto custom-scrollbar" id="patient-list">
+                    <!-- Patient Items Injected by JS -->
+                </div>
+            </div>
+
+            <!-- DICOM Viewer & Analytics (Right Column) -->
+            <div class="flex-1 flex flex-col h-2/3 lg:h-full bg-slate-950 relative overflow-hidden">
+                <!-- Patient Context Bar -->
+                <div class="h-14 md:h-16 bg-slate-900 border-b border-slate-800 flex items-center px-4 md:px-6 justify-between shrink-0">
+                    <div class="flex flex-col overflow-hidden mr-4">
+                        <div class="flex items-center space-x-2 md:space-x-3 truncate">
+                            <h2 class="text-lg md:text-xl font-bold text-white truncate" id="ctx-name">Select a Patient</h2>
+                            <span class="text-xs md:text-sm text-slate-400 hidden sm:inline" id="ctx-mrn">MRN: --</span>
+                            <span class="px-2 py-0.5 rounded text-[10px] md:text-xs font-medium shrink-0" id="ctx-status">--</span>
+                        </div>
+                        <div class="text-[10px] md:text-sm text-slate-400 mt-0.5 flex space-x-4" id="ctx-demographics">
+                            <span>DOB: --</span>
+                            <span>Gender: --</span>
+                        </div>
+                    </div>
+                    <div class="flex space-x-2 shrink-0">
+                        <button class="btn-secondary hidden sm:flex items-center space-x-2" onclick="window.openEhrDrawer()">
+                            <i data-lucide="file-text" class="w-4 h-4"></i>
+                            <span>View EHR</span>
+                        </button>
+                        <button class="btn-primary flex items-center space-x-1 md:space-x-2 text-xs md:text-sm px-2 md:px-4" onclick="window.openSignOffModal()">
+                            <i data-lucide="check-circle" class="w-3 h-3 md:w-4 md:h-4"></i>
+                            <span>Sign Off</span>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Main Viewer Area -->
+                <div class="flex-1 flex flex-col xl:flex-row p-2 md:p-4 space-y-4 xl:space-y-0 xl:space-x-4 overflow-y-auto xl:overflow-hidden custom-scrollbar">
+                    
+                    <!-- Imaging Panel -->
+                    <div class="flex-[3] flex flex-col bg-slate-900 rounded-lg border border-slate-800 overflow-hidden relative dicom-container min-h-[300px] xl:min-h-0">
+                        <div class="h-10 md:h-12 border-b border-slate-800 flex items-center justify-between px-2 md:px-4 bg-slate-800/50">
+                            <div class="flex space-x-1 md:space-x-2">
+                                <button class="p-1 hover:bg-slate-700 rounded text-slate-300" title="Window Level"><i data-lucide="sun" class="w-4 h-4 md:w-5 md:h-5"></i></button>
+                                <button class="p-1 hover:bg-slate-700 rounded text-slate-300" title="Zoom"><i data-lucide="zoom-in" class="w-4 h-4 md:w-5 md:h-5"></i></button>
+                                <button class="p-1 hover:bg-slate-700 rounded text-slate-300" title="Pan"><i data-lucide="move" class="w-4 h-4 md:w-5 md:h-5"></i></button>
+                                <div class="w-px h-5 md:h-6 bg-slate-700 mx-1"></div>
+                                <div class="w-px h-5 md:h-6 bg-slate-700 mx-1"></div>
+                                <label class="flex items-center space-x-2 cursor-pointer text-xs md:text-sm p-1 hover:bg-slate-700 rounded text-clinical-blue font-medium transition-colors">
+                                    <input type="checkbox" id="ai-overlay-toggle" checked class="form-checkbox text-clinical-blue rounded border-slate-600 bg-slate-800 focus:ring-clinical-blue focus:ring-offset-slate-900">
+                                    <span class="hidden sm:inline">AI Segmentation</span>
+                                    <span class="sm:hidden">AI Mask</span>
+                                </label>
+                                <div class="w-px h-5 md:h-6 bg-slate-700 mx-1"></div>
+                                <button class="flex items-center space-x-1 p-1 px-2 hover:bg-slate-700 rounded text-emerald-400 text-xs font-medium transition-colors" onclick="window.toggleEchoPlayback()" id="echo-play-btn">
+                                    <i data-lucide="pause-circle" class="w-4 h-4"></i>
+                                    <span class="hidden md:inline">Real-Time Echo</span>
+                                </button>
+                            </div>
+                            <div class="text-[10px] md:text-xs text-slate-500 truncate ml-2">Series: Axial CCTA - 2.5mm</div>
+                        </div>
+
+                        <!-- Image Display -->
+                        <div class="flex-1 relative bg-black flex items-center justify-center !overflow-visible" id="dicom-viewport">
+                            <div class="absolute inset-0 opacity-20 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjAiIGhlaWdodD0iMjAiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PGNpcmNsZSBjeD0iMiIgY3k9IjIiIHI9IjEiIGZpbGw9IiMzMzMiLz48L3N2Zz4=')]"></div>
+                            <div class="relative w-1/2 md:w-3/4 max-w-sm aspect-square border border-slate-800 rounded-full shadow-[0_0_50px_rgba(14,165,233,0.1)] flex items-center justify-center transition-all duration-500 !overflow-visible" id="heart-scan">
+                                <!-- Radar Sweep -->
+                                <div class="radar-sweep" id="radar-sweep" style="overflow: hidden; border-radius: 50%;"></div>
+                                
+                                <i data-lucide="heart" class="w-1/2 h-1/2 text-slate-700 animate-pulse-sync" id="heart-icon"></i>
+                                <div id="ai-mask" class="absolute inset-0 rounded-full border-4 border-transparent transition-all duration-300 pointer-events-none"></div>
+                                
+                                <!-- ROI Overlays -->
+                                <div class="roi-overlay roi-normal hidden" style="top: 45%; left: 45%; width: 40px; height: 40px;">
+                                    <span class="roi-tooltip border-emerald-500 bg-emerald-500/20 text-emerald-400 text-shadow-none">Normal Myocardium</span>
+                                </div>
+                                <div class="roi-overlay roi-abnormal" style="top: 35%; left: 55%; width: 30px; height: 30px;">
+                                    <span class="roi-tooltip">Anterior Wall Motion Abnormality</span>
+                                </div>
+                                <div class="roi-overlay roi-abnormal border-amber-500 bg-amber-500/20" style="bottom: 35%; left: 40%; width: 20px; height: 20px;">
+                                    <span class="roi-tooltip border-amber-500">Mild Diastolic Dysfunction</span>
+                                </div>
+
+                                <div id="ai-label" class="absolute top-2 right-2 md:top-4 md:right-4 bg-slate-900/80 backdrop-blur text-[10px] md:text-xs px-2 py-1 rounded border border-slate-700 hidden text-white text-center max-w-[120px]"></div>
+                            </div>
+                            <div class="absolute top-2 left-2 text-[8px] md:text-[10px] text-slate-500">kV: 120<br>mA: 250<br>ST: 2.5mm</div>
+                            <div class="absolute bottom-2 right-2 text-[8px] md:text-[10px] text-slate-500 text-right">WL: 400<br>WW: 2000</div>
+                        </div>
+                    </div>
+
+                    <!-- Clinical Findings & Risk Panel -->
+                    <div class="flex-[2] flex flex-col space-y-3 xl:space-y-4 xl:h-full xl:overflow-y-auto pr-1 custom-scrollbar pb-4 xl:pb-0">
+                        <!-- AI Confidence Score -->
+                        <div class="bg-slate-900 p-3 md:p-4 rounded-lg border border-slate-800 shadow-sm relative overflow-hidden group shrink-0">
+                            <div class="absolute top-0 right-0 w-1 h-full bg-slate-700 transition-colors duration-300" id="confidence-indicator"></div>
+                            <h3 class="text-xs md:text-sm font-semibold text-slate-400 mb-1 md:mb-2 uppercase tracking-wider">AI Diagnostic Confidence</h3>
+                            <div class="flex items-end space-x-3">
+                                <span class="text-2xl md:text-3xl font-bold text-white" id="confidence-score">--</span>
+                                <span class="text-xs md:text-sm text-slate-400 pb-1" id="confidence-label">Awaiting Selection</span>
+                            </div>
+                            <p class="text-[10px] md:text-xs text-slate-500 mt-1 md:mt-2">Based on multi-modal analysis (Vision + FHIR)</p>
+                        </div>
+
+                        <!-- Key Metrics -->
+                        <div class="bg-slate-900 rounded-lg border border-slate-800 shadow-sm shrink-0">
+                            <div class="p-2 md:p-3 border-b border-slate-800 bg-slate-800/30">
+                                <h3 class="text-xs md:text-sm font-semibold text-slate-300 flex items-center">
+                                    <i data-lucide="activity" class="w-3 h-3 md:w-4 md:h-4 mr-2 text-clinical-blue"></i> Cardiac Metrics
+                                </h3>
+                            </div>
+                            <div class="p-3 md:p-4 grid grid-cols-2 lg:grid-cols-4 gap-2 md:gap-4">
+                                <div class="bg-slate-950 p-2 md:p-3 rounded border border-slate-800 transition-colors" id="box-lvef">
+                                    <div class="text-[10px] md:text-xs text-slate-500 mb-1">LVEF</div>
+                                    <div class="text-sm md:text-lg font-bold text-white" id="metric-lvef">--</div>
+                                </div>
+                                <div class="bg-slate-950 p-2 md:p-3 rounded border border-slate-800 transition-colors" id="box-gls">
+                                    <div class="text-[10px] md:text-xs text-slate-500 mb-1">GLS</div>
+                                    <div class="text-sm md:text-lg font-bold text-white" id="metric-gls">--</div>
+                                </div>
+                                <div class="bg-slate-950 p-2 md:p-3 rounded border border-slate-800 transition-colors" id="box-hr">
+                                    <div class="text-[10px] md:text-xs text-slate-500 mb-1">Heart Rate</div>
+                                    <div class="text-sm md:text-lg font-bold text-white" id="metric-hr">--</div>
+                                </div>
+                                <div class="bg-slate-950 p-2 md:p-3 rounded border border-slate-800 transition-colors">
+                                    <div class="text-[10px] md:text-xs text-slate-500 mb-1">BP</div>
+                                    <div class="text-sm md:text-lg font-bold text-white" id="metric-bp">--</div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Real-time Telemetry Canvas -->
+                        <div class="bg-slate-900 rounded-lg border border-slate-800 shadow-sm shrink-0">
+                            <div class="p-2 md:p-3 border-b border-slate-800 bg-slate-800/30 flex justify-between items-center">
+                                <h3 class="text-xs md:text-sm font-semibold text-slate-300 flex items-center">
+                                    <i data-lucide="activity-square" class="w-3 h-3 md:w-4 md:h-4 mr-2 text-emerald-400"></i> Live Telemetry
+                                </h3>
+                                <span class="text-[10px] text-emerald-500 font-medium animate-pulse">● LIVE</span>
+                            </div>
+                            <div class="p-3 md:p-4 h-24 md:h-32 w-full relative bg-slate-950 rounded-b-lg overflow-hidden">
+                                <canvas id="ekgCanvas" class="w-full h-full"></canvas>
+                            </div>
+                        </div>
+
+                        <!-- Structured AI Findings -->
+                        <div class="bg-slate-900 rounded-lg border border-slate-800 shadow-sm flex-1 flex flex-col min-h-[150px]">
+                            <div class="p-2 md:p-3 border-b border-slate-800 bg-slate-800/30 flex justify-between items-center">
+                                <h3 class="text-xs md:text-sm font-semibold text-slate-300 flex items-center">
+                                    <i data-lucide="cpu" class="w-3 h-3 md:w-4 md:h-4 mr-2 text-purple-400"></i> AI Structured Findings
+                                </h3>
+                                <button class="text-xs text-slate-400 hover:text-white transition" title="Reject AI Finding" onclick="showNotification('Correction Logged', 'Your rejection of this AI finding has been saved for MLOps review.', 'warning')">
+                                    <i data-lucide="thumbs-down" class="w-3.5 h-3.5"></i>
+                                </button>
+                            </div>
+                            <div class="p-3 md:p-4 text-xs md:text-sm text-slate-300 leading-relaxed overflow-y-auto" id="ai-findings">
+                                Select a patient to view AI-generated clinical findings based on image segmentation and historical FHIR data.
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ============================== -->
+        <!-- VIEW 2: Patient Directory      -->
+        <!-- ============================== -->
+        <div id="view-directory" class="app-view hidden flex-1 flex flex-col h-full bg-slate-950 p-4 md:p-8 overflow-y-auto custom-scrollbar">
+            <div class="flex justify-between items-center mb-6">
+                <div>
+                    <h2 class="text-xl md:text-2xl font-bold text-white mb-1">Patient Directory</h2>
+                    <p class="text-sm text-slate-400">Manage all registered patients in the system</p>
+                </div>
+                <button class="btn-secondary hidden sm:flex items-center space-x-2">
+                    <i data-lucide="download" class="w-4 h-4"></i><span>Export Report</span>
+                </button>
+            </div>
+            
+            <div class="bg-slate-900 border border-slate-800 rounded-lg overflow-hidden">
+                <div class="p-4 border-b border-slate-800 flex justify-between items-center bg-slate-800/30">
+                    <div class="relative w-full max-w-xs">
+                        <i data-lucide="search" class="absolute left-3 top-2 w-4 h-4 text-slate-500"></i>
+                        <input type="text" placeholder="Search directory..." class="w-full bg-slate-950 border border-slate-700 rounded-md py-1.5 pl-9 pr-3 text-sm focus:outline-none focus:border-clinical-blue text-white">
+                    </div>
+                </div>
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left text-sm text-slate-300">
+                        <thead class="text-xs text-slate-400 uppercase bg-slate-950/50 border-b border-slate-800">
+                            <tr>
+                                <th class="px-6 py-3 font-medium">Patient Info</th>
+                                <th class="px-6 py-3 font-medium">MRN</th>
+                                <th class="px-6 py-3 font-medium">Status</th>
+                                <th class="px-6 py-3 font-medium">Primary Condition</th>
+                                <th class="px-6 py-3 font-medium text-right">Action</th>
+                            </tr>
+                        </thead>
+                        <tbody id="directory-tbody" class="divide-y divide-slate-800/50">
+                            <!-- Populated dynamically via JS -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- ============================== -->
+        <!-- VIEW 2.5: Analytics            -->
+        <!-- ============================== -->
+        <div id="view-analytics" class="app-view hidden flex-1 flex flex-col h-full bg-slate-950 p-4 md:p-8 overflow-y-auto custom-scrollbar">
+            <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 space-y-4 md:space-y-0">
+                <div>
+                    <h2 class="text-xl md:text-2xl font-bold text-white mb-1">Population Analytics</h2>
+                    <p class="text-sm text-slate-400">Aggregate insights & risk distribution</p>
+                </div>
+                <div class="flex space-x-3">
+                    <select class="form-input bg-slate-900 w-auto text-sm py-1.5" onchange="showNotification('Filter Applied', 'Data range updated.', 'info')">
+                        <option>Last 30 Days</option>
+                        <option>Last 7 Days</option>
+                        <option>Last 24 Hours</option>
+                    </select>
+                    <select class="form-input bg-slate-900 w-auto text-sm py-1.5" onchange="showNotification('Filter Applied', 'Risk category updated.', 'info')">
+                        <option>All Risks</option>
+                        <option>STAT / Urgent</option>
+                        <option>Routine</option>
+                    </select>
+                </div>
+            </div>
+
+            <!-- Top Metric Cards -->
+            <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+                <div class="bg-slate-900 border border-slate-800 rounded-lg p-4">
+                    <div class="text-slate-400 text-xs md:text-sm mb-2 flex items-center"><i data-lucide="users" class="w-4 h-4 mr-2"></i> Total Patients</div>
+                    <div class="text-2xl md:text-3xl font-bold text-white" id="stat-total">0</div>
+                </div>
+                <div class="bg-slate-900 border border-slate-800 rounded-lg p-4">
+                    <div class="text-slate-400 text-xs md:text-sm mb-2 flex items-center"><i data-lucide="activity" class="w-4 h-4 mr-2"></i> Avg LVEF</div>
+                    <div class="text-2xl md:text-3xl font-bold text-white" id="stat-lvef">0%</div>
+                </div>
+                <div class="bg-slate-900 border border-slate-800 rounded-lg p-4">
+                    <div class="text-slate-400 text-xs md:text-sm mb-2 flex items-center"><i data-lucide="alert-triangle" class="w-4 h-4 mr-2"></i> High-Risk Cases</div>
+                    <div class="text-2xl md:text-3xl font-bold text-red-400" id="stat-highrisk">0</div>
+                </div>
+                <div class="bg-slate-900 border border-slate-800 rounded-lg p-4">
+                    <div class="text-slate-400 text-xs md:text-sm mb-2 flex items-center"><i data-lucide="clock" class="w-4 h-4 mr-2"></i> Pending Sign-Offs</div>
+                    <div class="text-2xl md:text-3xl font-bold text-amber-400" id="stat-pending">0</div>
+                </div>
+            </div>
+
+            <!-- Main Charts Row -->
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+                
+                <!-- Risk Distribution Chart (CSS) -->
+                <div class="bg-slate-900 border border-slate-800 rounded-lg p-5">
+                    <h3 class="font-semibold text-white mb-6">Triage Risk Distribution</h3>
+                    
+                    <!-- Segmented Bar -->
+                    <div class="w-full h-8 flex rounded overflow-hidden mb-4">
+                        <div id="bar-stat" class="h-full bg-red-500 transition-all duration-1000 ease-out" style="width: 33%"></div>
+                        <div id="bar-urgent" class="h-full bg-amber-500 transition-all duration-1000 ease-out border-l border-r border-slate-900" style="width: 33%"></div>
+                        <div id="bar-routine" class="h-full bg-emerald-500 transition-all duration-1000 ease-out" style="width: 34%"></div>
+                    </div>
+                    
+                    <!-- Legend -->
+                    <div class="flex justify-between text-sm">
+                        <div class="flex items-center"><div class="w-3 h-3 rounded-full bg-red-500 mr-2"></div><span class="text-slate-300">STAT (<span id="pct-stat">33%</span>)</span></div>
+                        <div class="flex items-center"><div class="w-3 h-3 rounded-full bg-amber-500 mr-2"></div><span class="text-slate-300">URGENT (<span id="pct-urgent">33%</span>)</span></div>
+                        <div class="flex items-center"><div class="w-3 h-3 rounded-full bg-emerald-500 mr-2"></div><span class="text-slate-300">ROUTINE (<span id="pct-routine">34%</span>)</span></div>
+                    </div>
+                </div>
+
+                <!-- Trend Metrics (CSS Grid) -->
+                <div class="bg-slate-900 border border-slate-800 rounded-lg p-5">
+                    <h3 class="font-semibold text-white mb-6">Volume Trend (Last 7 Days)</h3>
+                    <div class="flex items-end justify-between h-32 space-x-2">
+                        <div class="w-full bg-clinical-blue/20 rounded-t hover:bg-clinical-blue/40 transition-colors relative group" style="height: 40%">
+                            <div class="absolute -top-8 left-1/2 -translate-x-1/2 bg-slate-800 text-xs px-2 py-1 rounded hidden group-hover:block text-white">40</div>
+                        </div>
+                        <div class="w-full bg-clinical-blue/20 rounded-t hover:bg-clinical-blue/40 transition-colors relative group" style="height: 55%">
+                            <div class="absolute -top-8 left-1/2 -translate-x-1/2 bg-slate-800 text-xs px-2 py-1 rounded hidden group-hover:block text-white">55</div>
+                        </div>
+                        <div class="w-full bg-clinical-blue/20 rounded-t hover:bg-clinical-blue/40 transition-colors relative group" style="height: 35%">
+                            <div class="absolute -top-8 left-1/2 -translate-x-1/2 bg-slate-800 text-xs px-2 py-1 rounded hidden group-hover:block text-white">35</div>
+                        </div>
+                        <div class="w-full bg-clinical-blue/20 rounded-t hover:bg-clinical-blue/40 transition-colors relative group" style="height: 60%">
+                            <div class="absolute -top-8 left-1/2 -translate-x-1/2 bg-slate-800 text-xs px-2 py-1 rounded hidden group-hover:block text-white">60</div>
+                        </div>
+                        <div class="w-full bg-clinical-blue/50 rounded-t hover:bg-clinical-blue/70 transition-colors border-t-2 border-clinical-blue relative group" style="height: 85%">
+                            <div class="absolute -top-8 left-1/2 -translate-x-1/2 bg-slate-800 text-xs px-2 py-1 rounded hidden group-hover:block text-white">85</div>
+                        </div>
+                        <div class="w-full bg-clinical-blue/20 rounded-t hover:bg-clinical-blue/40 transition-colors relative group" style="height: 45%">
+                            <div class="absolute -top-8 left-1/2 -translate-x-1/2 bg-slate-800 text-xs px-2 py-1 rounded hidden group-hover:block text-white">45</div>
+                        </div>
+                        <div class="w-full bg-clinical-blue/20 rounded-t hover:bg-clinical-blue/40 transition-colors relative group" style="height: 65%">
+                            <div class="absolute -top-8 left-1/2 -translate-x-1/2 bg-slate-800 text-xs px-2 py-1 rounded hidden group-hover:block text-white">65</div>
+                        </div>
+                    </div>
+                    <div class="flex justify-between mt-2 text-[10px] text-slate-500 uppercase font-medium">
+                        <span>Mon</span><span>Tue</span><span>Wed</span><span>Thu</span><span>Fri</span><span>Sat</span><span>Sun</span>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+
+        <!-- ============================== -->
+        <!-- VIEW 3: Ingestion / Upload     -->
+        <!-- ============================== -->
+        <div id="view-upload" class="app-view hidden flex-1 flex flex-col h-full bg-slate-950 p-4 md:p-8 overflow-y-auto custom-scrollbar">
+            <h2 class="text-xl md:text-2xl font-bold text-white mb-1">Data Ingestion</h2>
+            <p class="text-sm text-slate-400 mb-6">Upload DICOM imaging sets or FHIR JSON bundles for AI analysis</p>
+            
+            <div class="max-w-3xl mx-auto w-full">
+                <div class="border-2 border-dashed border-slate-700 hover:border-clinical-blue rounded-xl p-10 md:p-16 flex flex-col items-center justify-center text-center transition-colors cursor-pointer bg-slate-900/50 relative overflow-hidden" id="upload-dropzone">
+                    <i data-lucide="upload-cloud" class="w-12 h-12 text-slate-500 mb-4"></i>
+                    <h3 class="text-lg font-medium text-white mb-2">Drag and drop files here</h3>
+                    <p class="text-sm text-slate-400 mb-6 max-w-md">Supported formats: DICOM (.dcm), FHIR (.json), Images (.png, .jpg), Reports (.pdf).</p>
+                    <button class="btn-secondary" onclick="window.triggerFileInput()">Browse Files</button>
+                    <input type="file" id="actual-file-input" class="hidden" accept=".dcm,.json,.png,.jpg,.jpeg,.pdf" onchange="window.handleFileSelect(event)" multiple>
+                    
+                    <!-- Progress Bar Overlay (Hidden by default) -->
+                    <div id="upload-progress-overlay" class="absolute inset-0 bg-slate-900/95 flex flex-col justify-center items-center p-8 hidden">
+                        <i data-lucide="cpu" class="w-8 h-8 text-clinical-blue animate-pulse mb-4"></i>
+                        <h4 class="text-white font-medium mb-2">AI Processing...</h4>
+                        <div class="w-full max-w-md bg-slate-800 rounded-full h-2.5 mb-2 overflow-hidden">
+                            <div id="upload-progress-bar" class="bg-clinical-blue h-2.5 rounded-full" style="width: 0%"></div>
+                        </div>
+                        <p id="upload-progress-text" class="text-xs text-slate-400">Extracting DICOM headers...</p>
+                    </div>
+                </div>
+
+                <div class="mt-8">
+                    <h4 class="text-sm font-semibold text-slate-300 mb-3">Recent Uploads</h4>
+                    <div id="recent-uploads-list" class="space-y-2">
+                        <div class="bg-slate-900 border border-slate-800 rounded p-3 flex justify-between items-center text-sm">
+                            <div class="flex items-center"><i data-lucide="file-json" class="w-4 h-4 text-emerald-500 mr-2"></i> fhir_bundle_mrn847.json</div>
+                            <span class="text-emerald-500 text-xs">Processed</span>
+                        </div>
+                        <div class="bg-slate-900 border border-slate-800 rounded p-3 flex justify-between items-center text-sm">
+                            <div class="flex items-center"><i data-lucide="image" class="w-4 h-4 text-emerald-500 mr-2"></i> study_ccta_9912.dcm</div>
+                            <span class="text-emerald-500 text-xs">Processed</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ============================== -->
+        <!-- VIEW 4: Settings               -->
+        <!-- ============================== -->
+        <div id="view-settings" class="app-view hidden flex-1 flex flex-col h-full bg-slate-950 p-4 md:p-8 overflow-y-auto custom-scrollbar">
+            <h2 class="text-xl md:text-2xl font-bold text-white mb-6">System Settings</h2>
+            
+            <div class="max-w-2xl bg-slate-900 border border-slate-800 rounded-lg p-6 space-y-8">
+                <!-- Theme -->
+                <div>
+                    <h3 class="text-sm font-medium text-white mb-4">Appearance</h3>
+                    <div class="flex items-center justify-between p-3 bg-slate-950 border border-slate-800 rounded">
+                        <div>
+                            <div class="text-sm text-slate-200">Dark Mode</div>
+                            <div class="text-xs text-slate-500">Toggle dark/light theme</div>
+                        </div>
+                        <label class="relative inline-flex items-center cursor-pointer">
+                            <input type="checkbox" id="theme-toggle" checked class="sr-only peer" onchange="window.toggleTheme(this.checked)">
+                            <div class="w-11 h-6 bg-slate-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-clinical-blue"></div>
+                        </label>
+                    </div>
+                </div>
+                
+                <!-- AI Thresholds -->
+                <div>
+                    <h3 class="text-sm font-medium text-white mb-4">AI Model Parameters</h3>
+                    <div class="space-y-3">
+                        <div class="p-3 bg-slate-950 border border-slate-800 rounded">
+                            <div class="flex justify-between mb-2">
+                                <div class="text-sm text-slate-200">Diagnostic Confidence Threshold</div>
+                                <div class="text-sm text-clinical-blue"><span id="threshold-val">85</span>%</div>
+                            </div>
+                            <input type="range" id="confidence-slider" min="50" max="99" value="85" class="w-full h-1 bg-slate-700 rounded-lg appearance-none cursor-pointer">
+                            <div class="text-xs text-slate-500 mt-2">Minimum confidence score required for AI to auto-flag findings.</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Notifications -->
+                <div>
+                    <h3 class="text-sm font-medium text-white mb-4">Notification Rules</h3>
+                    <div class="flex items-center justify-between p-3 bg-slate-950 border border-slate-800 rounded">
+                        <div>
+                            <div class="text-sm text-slate-200">STAT Priority Alerts</div>
+                            <div class="text-xs text-slate-500">Push high-priority alerts to pager/mobile.</div>
+                        </div>
+                        <label class="relative inline-flex items-center cursor-pointer">
+                            <input type="checkbox" checked class="sr-only peer">
+                            <div class="w-11 h-6 bg-slate-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-clinical-blue"></div>
+                        </label>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ============================== -->
+        <!-- VIEW 5: Creator Control        -->
+        <!-- ============================== -->
+        <div id="view-creator" class="app-view hidden flex-1 flex flex-col h-full bg-slate-950 p-4 md:p-8 overflow-y-auto custom-scrollbar">
+            <h2 class="text-xl md:text-2xl font-bold text-amber-400 mb-6 flex items-center">
+                <i data-lucide="crown" class="w-6 h-6 mr-2"></i> Creator Control Mode
+            </h2>
+            
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 max-w-5xl">
+                
+                <!-- System Override Controls -->
+                <div class="bg-slate-900 border border-slate-800 rounded-lg p-6">
+                    <h3 class="text-sm font-medium text-white mb-4 border-b border-slate-800 pb-2">System Override Controls</h3>
+                    <div class="space-y-4">
+                        <div class="flex items-center justify-between p-3 bg-slate-950 border border-slate-800 rounded">
+                            <div>
+                                <div class="text-sm text-slate-200">Force Dark/Light Mode</div>
+                                <div class="text-xs text-slate-500">Global theme override</div>
+                            </div>
+                            <label class="relative inline-flex items-center cursor-pointer">
+                                <input type="checkbox" id="override-theme" checked class="sr-only peer" onchange="window.toggleTheme(this.checked)">
+                                <div class="w-11 h-6 bg-slate-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-amber-500"></div>
+                            </label>
+                        </div>
+                        
+                        <div class="p-3 bg-slate-950 border border-slate-800 rounded">
+                            <div class="flex justify-between mb-2">
+                                <div class="text-sm text-slate-200">Override AI Confidence Threshold</div>
+                                <div class="text-sm text-amber-400"><span id="override-threshold-val">85</span>%</div>
+                            </div>
+                            <input type="range" id="override-confidence-slider" min="0" max="100" value="85" class="w-full h-1 bg-slate-700 rounded-lg appearance-none cursor-pointer">
+                        </div>
+
+                        <div class="flex items-center justify-between p-3 bg-slate-950 border border-slate-800 rounded">
+                            <div>
+                                <div class="text-sm text-slate-200">Toggle Simulated Telemetry</div>
+                                <div class="text-xs text-slate-500">Enable/disable EKG animations</div>
+                            </div>
+                            <label class="relative inline-flex items-center cursor-pointer">
+                                <input type="checkbox" id="override-telemetry" checked class="sr-only peer" onchange="window.toggleTelemetry(this.checked)">
+                                <div class="w-11 h-6 bg-slate-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-amber-500"></div>
+                            </label>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- User & Access Management -->
+                <div class="bg-slate-900 border border-slate-800 rounded-lg p-6">
+                    <h3 class="text-sm font-medium text-white mb-4 border-b border-slate-800 pb-2">User & Access Management</h3>
+                    <div class="space-y-3" id="creator-user-list">
+                        <!-- Mock Users -->
+                        <div class="flex items-center justify-between p-3 bg-slate-950 border border-slate-800 rounded">
+                            <div>
+                                <div class="text-sm text-slate-200">mitin6965@gmail.com</div>
+                                <div class="text-xs text-slate-500">Role: Clinical Specialist</div>
+                            </div>
+                            <div class="flex space-x-2">
+                                <button class="px-3 py-1 bg-emerald-500/20 text-emerald-500 hover:bg-emerald-500/30 border border-emerald-500/30 rounded text-xs transition-colors" onclick="window.showNotification('Access Granted', 'mitin6965@gmail.com now has full access.', 'success')">Grant</button>
+                                <button class="px-3 py-1 bg-rose-500/20 text-rose-500 hover:bg-rose-500/30 border border-rose-500/30 rounded text-xs transition-colors" onclick="window.showNotification('Access Revoked', 'mitin6965@gmail.com has been revoked.', 'warning')">Revoke</button>
+                            </div>
+                        </div>
+                        <div class="flex items-center justify-between p-3 bg-slate-950 border border-slate-800 rounded">
+                            <div>
+                                <div class="text-sm text-slate-200">Asu1234</div>
+                                <div class="text-xs text-slate-500">Role: Pending Approval</div>
+                            </div>
+                            <div class="flex space-x-2">
+                                <button class="px-3 py-1 bg-emerald-500/20 text-emerald-500 hover:bg-emerald-500/30 border border-emerald-500/30 rounded text-xs transition-colors" onclick="window.showNotification('Access Granted', 'Asu1234 now has full access.', 'success')">Grant</button>
+                                <button class="px-3 py-1 bg-rose-500/20 text-rose-500 hover:bg-rose-500/30 border border-rose-500/30 rounded text-xs transition-colors" onclick="window.showNotification('Access Revoked', 'Asu1234 has been revoked.', 'warning')">Revoke</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Database Wipe/Reset -->
+                <div class="bg-slate-900 border border-slate-800 rounded-lg p-6 lg:col-span-2">
+                    <h3 class="text-sm font-medium text-white mb-4 border-b border-slate-800 pb-2">Database & Cache Control</h3>
+                    <div class="flex flex-col sm:flex-row gap-4">
+                        <button class="flex-1 px-4 py-3 bg-rose-500/20 text-rose-500 border border-rose-500/30 rounded hover:bg-rose-500/30 transition-colors flex items-center justify-center font-medium" onclick="window.wipeDatabase()">
+                            <i data-lucide="trash-2" class="w-4 h-4 mr-2"></i> Wipe Local Storage (Reset)
+                        </button>
+                        <button class="flex-1 px-4 py-3 bg-amber-500/20 text-amber-500 border border-amber-500/30 rounded hover:bg-amber-500/30 transition-colors flex items-center justify-center font-medium" onclick="window.repopulateMockData()">
+                            <i data-lucide="database" class="w-4 h-4 mr-2"></i> Re-populate Default Mock Data
+                        </button>
+                    </div>
+                </div>
+                
+            </div>
+        </div>
+
+    </div>
+
+    <!-- ============================== -->
+    <!-- MODALS & DRAWERS               -->
+    <!-- ============================== -->
+
+    <!-- Register New Patient Modal -->
+    <div id="register-modal" class="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 flex items-center justify-center hidden opacity-0 transition-opacity duration-300 px-4">
+        <div class="bg-slate-900 border border-slate-700 rounded-xl shadow-2xl w-full max-w-[600px] overflow-hidden transform scale-95 transition-transform duration-300" id="register-modal-content">
+            <div class="p-4 md:p-5 border-b border-slate-800 flex justify-between items-center bg-slate-800/50">
+                <h3 class="font-semibold text-white flex items-center text-sm md:text-base">
+                    <i data-lucide="user-plus" class="w-4 h-4 md:w-5 md:h-5 mr-2 text-clinical-blue"></i>
+                    Register New Patient
+                </h3>
+                <button onclick="window.closeRegisterModal()" class="text-slate-400 hover:text-white">
+                    <i data-lucide="x" class="w-4 h-4 md:w-5 md:h-5"></i>
+                </button>
+            </div>
+            <form id="register-form" class="p-4 md:p-6" onsubmit="window.handleRegistrationSubmit(event)">
+                <div class="grid grid-cols-2 gap-4 mb-4">
+                    <div class="col-span-2 sm:col-span-1">
+                        <label class="form-label">Full Name</label>
+                        <input type="text" id="patient-name" name="patientName" required class="form-input" placeholder="e.g. John Doe">
+                    </div>
+                    <div class="col-span-2 sm:col-span-1">
+                        <label class="form-label">MRN</label>
+                        <input type="text" id="reg-mrn" required class="form-input" placeholder="e.g. MRN-123-456">
+                    </div>
+                    <div>
+                        <label class="form-label">Age</label>
+                        <input type="number" id="reg-age" required class="form-input" placeholder="e.g. 52">
+                    </div>
+                    <div>
+                        <label class="form-label">Gender</label>
+                        <select id="reg-gender" class="form-input bg-slate-950">
+                            <option value="M">Male</option>
+                            <option value="F">Female</option>
+                            <option value="O">Other</option>
+                        </select>
+                    </div>
+                    <div class="col-span-2">
+                        <label class="form-label">Triage Priority</label>
+                        <select id="reg-priority" class="form-input bg-slate-950">
+                            <option value="ROUTINE">ROUTINE</option>
+                            <option value="URGENT">URGENT</option>
+                            <option value="STAT">STAT</option>
+                        </select>
+                    </div>
+                    <div class="col-span-2 border-t border-slate-800 pt-4 mt-2">
+                        <h4 class="text-xs font-semibold text-slate-300 mb-3">Initial Clinical Vitals</h4>
+                    </div>
+                    <div>
+                        <label class="form-label">LVEF (%)</label>
+                        <input type="number" id="reg-lvef" required class="form-input" placeholder="e.g. 55" min="10" max="90">
+                    </div>
+                    <div>
+                        <label class="form-label">Heart Rate (bpm)</label>
+                        <input type="number" id="reg-hr" required class="form-input" placeholder="e.g. 72" min="30" max="250">
+                    </div>
+                    <div class="col-span-2">
+                        <label class="form-label">Initial Diagnosis / Condition</label>
+                        <input type="text" id="reg-condition" required class="form-input" placeholder="e.g. Chest pain, eval for ischemia">
+                    </div>
+                </div>
+                <div class="mt-6 flex justify-end space-x-3">
+                    <button type="button" onclick="window.closeRegisterModal()" class="px-3 md:px-4 py-1.5 md:py-2 rounded text-xs md:text-sm text-slate-300 hover:bg-slate-800 transition">Cancel</button>
+                    <button type="submit" class="btn-primary text-xs md:text-sm">Save & Register</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Sign-Off Modal -->
+    <div id="signoff-modal" class="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 flex items-center justify-center hidden opacity-0 transition-opacity duration-300 px-4">
+        <div class="bg-slate-900 border border-slate-700 rounded-xl shadow-2xl w-full max-w-[400px] overflow-hidden transform scale-95 transition-transform duration-300" id="signoff-modal-content">
+            <div class="p-6 text-center">
+                <div class="w-12 h-12 bg-clinical-blue/20 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <i data-lucide="check-circle" class="w-6 h-6 text-clinical-blue"></i>
+                </div>
+                <h3 class="text-lg font-bold text-white mb-2">Sign Off Diagnostic Report</h3>
+                <p class="text-sm text-slate-400 mb-4">Are you sure you want to finalize the AI-assisted diagnostic findings for this patient? This action will mark the chart as Complete.</p>
+                <div class="bg-slate-950 p-2 rounded border border-slate-800 text-xs text-slate-500 mb-6 flex justify-center items-center">
+                    <i data-lucide="pen-tool" class="w-3 h-3 mr-2 text-slate-400"></i> Signed by: <span id="signoff-dr-name" class="ml-1 text-slate-300 font-medium">Dr. S. Reynolds</span>
+                </div>
+                
+                <div class="flex justify-center space-x-3">
+                    <button onclick="window.closeSignOffModal()" class="btn-secondary w-full">Cancel</button>
+                    <button onclick="window.confirmSignOff()" class="btn-primary w-full">Confirm Sign Off</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- AI Analysis & Document Viewer Modal -->
+    <div id="ai-analysis-modal" class="fixed inset-0 bg-slate-950/90 backdrop-blur-sm z-50 flex items-center justify-center hidden opacity-0 transition-opacity duration-300 px-4">
+        <div class="bg-slate-900 border border-slate-700 rounded-xl shadow-2xl w-full max-w-[900px] h-[80vh] flex flex-col overflow-hidden transform scale-95 transition-transform duration-300" id="ai-analysis-modal-content">
+            <!-- Header -->
+            <div class="p-4 md:p-5 border-b border-slate-800 flex justify-between items-center bg-slate-800/50 shrink-0">
+                <h3 class="font-semibold text-white flex items-center text-sm md:text-base">
+                    <i data-lucide="microscope" class="w-4 h-4 md:w-5 md:h-5 mr-2 text-clinical-blue"></i>
+                    AI Analysis & Document Viewer <span id="ai-modal-filename" class="ml-3 text-slate-400 font-normal truncate max-w-[200px] md:max-w-[400px]"></span>
+                </h3>
+                <button onclick="window.closeAiAnalysisModal()" class="text-slate-400 hover:text-white">
+                    <i data-lucide="x" class="w-4 h-4 md:w-5 md:h-5"></i>
+                </button>
+            </div>
+            
+            <!-- Two Column Layout -->
+            <div class="flex-1 flex flex-col md:flex-row overflow-hidden">
+                <!-- Left: Preview -->
+                <div class="w-full md:w-1/2 bg-black border-r border-slate-800 flex items-center justify-center p-4 relative" id="ai-modal-preview-container">
+                    <img id="ai-modal-img" src="" class="max-w-full max-h-full object-contain hidden" alt="Preview">
+                    <div id="ai-modal-icon" class="text-slate-600 hidden flex-col items-center">
+                        <i data-lucide="file-text" class="w-24 h-24 mb-4"></i>
+                        <span class="text-slate-400">Document Preview</span>
+                    </div>
+                </div>
+                
+                <!-- Right: AI Report -->
+                <div class="w-full md:w-1/2 p-6 overflow-y-auto bg-slate-900 custom-scrollbar">
+                    <div class="mb-6">
+                        <h4 class="text-xs uppercase tracking-wider text-slate-500 font-semibold mb-3">Diagnostic Impression</h4>
+                        <div class="bg-clinical-blue/10 border border-clinical-blue/30 rounded p-4">
+                            <div class="flex items-start justify-between mb-2">
+                                <span class="text-white font-medium" id="ai-modal-impression">Borderline Ischemia / Wall Motion Abnormality</span>
+                                <span class="bg-clinical-blue text-white text-xs px-2 py-1 rounded font-bold" id="ai-modal-confidence">91% Match</span>
+                            </div>
+                            <p class="text-sm text-slate-300">CardioKnight AI detects localized abnormalities consistent with early-stage ischemia. High confidence in anterior wall regions.</p>
+                        </div>
+                    </div>
+                    
+                    <div class="mb-6">
+                        <h4 class="text-xs uppercase tracking-wider text-slate-500 font-semibold mb-3">AI Key Observations</h4>
+                        <ul class="space-y-2 text-sm text-slate-300" id="ai-modal-observations">
+                            <li class="flex items-start"><i data-lucide="check-circle-2" class="w-4 h-4 text-emerald-500 mr-2 mt-0.5 shrink-0"></i> Calculated LVEF: 42% (Reduced)</li>
+                            <li class="flex items-start"><i data-lucide="check-circle-2" class="w-4 h-4 text-emerald-500 mr-2 mt-0.5 shrink-0"></i> Anterior Wall Motion Abnormality detected</li>
+                            <li class="flex items-start"><i data-lucide="check-circle-2" class="w-4 h-4 text-emerald-500 mr-2 mt-0.5 shrink-0"></i> Global Longitudinal Strain (GLS): -14%</li>
+                            <li class="flex items-start"><i data-lucide="check-circle-2" class="w-4 h-4 text-emerald-500 mr-2 mt-0.5 shrink-0"></i> Mild diastolic dysfunction</li>
+                        </ul>
+                    </div>
+                    
+                    <div class="mb-8">
+                        <h4 class="text-xs uppercase tracking-wider text-slate-500 font-semibold mb-3">Recommended Plan</h4>
+                        <ol class="list-decimal list-inside space-y-2 text-sm text-slate-300" id="ai-modal-plan">
+                            <li>Echocardiogram follow-up in 4 weeks</li>
+                            <li>Initiate Beta-blocker protocol (Cardiology consult)</li>
+                            <li>Schedule Angiography consultation</li>
+                        </ol>
+                    </div>
+                    
+                    <div class="space-y-3 pt-4 border-t border-slate-800">
+                        <button onclick="window.sendReportToEHR()" class="btn-primary w-full flex justify-center items-center">
+                            <i data-lucide="send" class="w-4 h-4 mr-2"></i> Send Report to Patient EHR
+                        </button>
+                        <button onclick="window.downloadPdfReport()" class="btn-secondary w-full flex justify-center items-center">
+                            <i data-lucide="download" class="w-4 h-4 mr-2"></i> Download PDF Report
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- EHR Side Drawer -->
+    <div id="ehr-drawer-overlay" class="fixed inset-0 bg-slate-950/60 backdrop-blur-sm z-40 hidden opacity-0 transition-opacity duration-300" onclick="window.closeEhrDrawer()"></div>
+    <div id="ehr-drawer" class="fixed top-0 right-0 bottom-0 w-full max-w-md bg-slate-900 border-l border-slate-800 z-50 shadow-2xl hidden translate-x-full transition-transform duration-300 flex flex-col">
+        <div class="p-4 border-b border-slate-800 flex justify-between items-center bg-slate-800/30">
+            <div>
+                <h3 class="font-semibold text-white flex items-center text-sm md:text-base">
+                    <i data-lucide="file-text" class="w-4 h-4 md:w-5 md:h-5 mr-2 text-clinical-blue"></i>
+                    Electronic Health Record
+                </h3>
+                <div class="text-xs text-slate-400 mt-1" id="ehr-patient-name">--</div>
+            </div>
+            <button onclick="window.closeEhrDrawer()" class="text-slate-400 hover:text-white p-2 bg-slate-800 rounded">
+                <i data-lucide="x" class="w-4 h-4"></i>
+            </button>
+        </div>
+        
+        <div class="flex-1 overflow-y-auto custom-scrollbar p-6 space-y-6">
+            <!-- Medical History -->
+            <div>
+                <div class="flex justify-between items-center mb-3">
+                    <h4 class="text-xs font-semibold text-slate-300 uppercase tracking-wider">Past Medical History</h4>
+                    <button onclick="window.toggleConditionForm()" class="text-xs text-clinical-blue hover:text-white transition flex items-center"><i data-lucide="plus" class="w-3 h-3 mr-1"></i> Add</button>
+                </div>
+                <ul id="ehr-conditions-list" class="text-sm text-slate-400 space-y-2 list-disc pl-4">
+                    <li>Hypertension (Diagnosed 2018)</li>
+                    <li>Hyperlipidemia</li>
+                    <li>Type 2 Diabetes Mellitus (Controlled)</li>
+                </ul>
+                <div id="ehr-add-condition-form" class="hidden mt-3 bg-slate-950 p-3 rounded border border-slate-800">
+                    <input type="text" id="ehr-new-condition" class="form-input text-xs mb-2" placeholder="Condition (e.g. Asthma)">
+                    <div class="flex space-x-2">
+                        <button onclick="window.addCondition()" class="btn-primary text-xs py-1 px-2 w-full">Save</button>
+                        <button onclick="window.toggleConditionForm()" class="btn-secondary text-xs py-1 px-2 w-full">Cancel</button>
+                    </div>
+                </div>
+            </div>
+            <!-- Meds -->
+            <div>
+                <div class="flex justify-between items-center mb-3">
+                    <h4 class="text-xs font-semibold text-slate-300 uppercase tracking-wider">Active Medications</h4>
+                    <button onclick="window.toggleMedForm()" class="text-xs text-clinical-blue hover:text-white transition flex items-center"><i data-lucide="plus" class="w-3 h-3 mr-1"></i> Add</button>
+                </div>
+                
+                <div id="ehr-ai-warning" class="hidden mb-3 bg-red-500/10 border border-red-500/30 rounded p-3 flex items-start">
+                    <i data-lucide="alert-triangle" class="w-4 h-4 text-red-400 mr-2 mt-0.5 shrink-0"></i>
+                    <div>
+                        <div class="text-xs font-bold text-red-400 mb-1">AI Interaction Warning</div>
+                        <div class="text-xs text-slate-300" id="ehr-ai-warning-text">Potential conflict detected.</div>
+                    </div>
+                </div>
+
+                <div id="ehr-meds-list" class="space-y-2">
+                    <div class="bg-slate-950 border border-slate-800 p-2 rounded text-sm">
+                        <div class="text-slate-200">Lisinopril <span class="text-slate-500 ml-1">10mg PO Daily</span></div>
+                    </div>
+                    <div class="bg-slate-950 border border-slate-800 p-2 rounded text-sm">
+                        <div class="text-slate-200">Atorvastatin <span class="text-slate-500 ml-1">40mg PO Nightly</span></div>
+                    </div>
+                    <div class="bg-slate-950 border border-slate-800 p-2 rounded text-sm">
+                        <div class="text-slate-200">Metformin <span class="text-slate-500 ml-1">500mg PO BID</span></div>
+                    </div>
+                </div>
+                
+                <div id="ehr-add-med-form" class="hidden mt-3 bg-slate-950 p-3 rounded border border-slate-800">
+                    <input type="text" id="ehr-new-med" class="form-input text-xs mb-2" placeholder="Medication Name (e.g. Aspirin)">
+                    <input type="text" id="ehr-new-dosage" class="form-input text-xs mb-2" placeholder="Dosage (e.g. 81mg PO Daily)">
+                    <div class="flex space-x-2">
+                        <button onclick="window.addMedication()" class="btn-primary text-xs py-1 px-2 w-full">Save</button>
+                        <button onclick="window.toggleMedForm()" class="btn-secondary text-xs py-1 px-2 w-full">Cancel</button>
+                    </div>
+                </div>
+            </div>
+            <!-- Recent Labs -->
+            <div>
+                <div class="flex justify-between items-center mb-3">
+                    <h4 class="text-xs font-semibold text-slate-300 uppercase tracking-wider">Recent Labs (Last 30 Days)</h4>
+                    <button onclick="window.toggleLabsForm()" class="text-xs text-clinical-blue hover:text-white transition flex items-center"><i data-lucide="edit-2" class="w-3 h-3 mr-1"></i> Update</button>
+                </div>
+                
+                <div class="bg-slate-950 border border-slate-800 rounded overflow-hidden">
+                    <table class="w-full text-left text-sm text-slate-300" id="ehr-labs-table">
+                        <tbody id="ehr-labs-tbody" class="divide-y divide-slate-800/50">
+                            <tr><td class="px-3 py-2 text-slate-400">LDL-C</td><td class="px-3 py-2 font-medium text-amber-500" id="lab-val-ldl">115 mg/dL</td></tr>
+                            <tr><td class="px-3 py-2 text-slate-400">HbA1c</td><td class="px-3 py-2 font-medium text-slate-200" id="lab-val-a1c">6.4%</td></tr>
+                            <tr><td class="px-3 py-2 text-slate-400">Creatinine</td><td class="px-3 py-2 font-medium text-slate-200" id="lab-val-creatinine">0.9 mg/dL</td></tr>
+                            <tr><td class="px-3 py-2 text-slate-400">Troponin I</td><td class="px-3 py-2 font-medium text-emerald-500" id="lab-val-troponin">< 0.01 ng/mL</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <div id="ehr-update-labs-form" class="hidden mt-3 bg-slate-950 p-3 rounded border border-slate-800">
+                    <div class="grid grid-cols-2 gap-2 mb-2">
+                        <input type="text" id="ehr-upd-ldl" class="form-input text-xs" placeholder="LDL-C">
+                        <input type="text" id="ehr-upd-a1c" class="form-input text-xs" placeholder="HbA1c">
+                        <input type="text" id="ehr-upd-creatinine" class="form-input text-xs" placeholder="Creatinine">
+                        <input type="text" id="ehr-upd-troponin" class="form-input text-xs" placeholder="Troponin">
+                    </div>
+                    <div class="flex space-x-2">
+                        <button onclick="window.updateLabs()" class="btn-primary text-xs py-1 px-2 w-full">Save Labs</button>
+                        <button onclick="window.toggleLabsForm()" class="btn-secondary text-xs py-1 px-2 w-full">Cancel</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- AI Summary Note -->
+            <div>
+                <h4 class="text-xs font-semibold text-slate-300 mb-3 uppercase tracking-wider">AI Clinical Summary Note</h4>
+                <div class="bg-clinical-blue/10 border border-clinical-blue/20 rounded p-3 text-sm text-slate-300">
+                    <p id="ehr-ai-summary">Troponin levels normal; Glycemic control stable. Patient is compliant with active medications. Follow-up recommended in 6 months for lipid panel reassessment.</p>
+                </div>
+            </div>
+            
+            <!-- Actions -->
+            <div class="pt-4 border-t border-slate-800 grid grid-cols-2 gap-3 pb-6">
+                <button onclick="showNotification('Exporting', 'Generating PDF summary...', 'info')" class="btn-secondary text-xs flex justify-center items-center">
+                    <i data-lucide="download" class="w-4 h-4 mr-2"></i> Export Summary
+                </button>
+                <button onclick="window.print()" class="btn-secondary text-xs flex justify-center items-center">
+                    <i data-lucide="printer" class="w-4 h-4 mr-2"></i> Print Record
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Scripts -->
+    <script src="./js/tests.js"></script>
+    <script src="./js/app.js"></script>
+    <script>
+        // Initialize Icons
+        lucide.createIcons();
+    </script>
+</body>
+</html>
